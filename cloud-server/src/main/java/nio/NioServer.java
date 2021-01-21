@@ -80,6 +80,22 @@ public class NioServer {
                 }
             }
         }
+        if (command.startsWith("cat")) {
+            String[] args = command.split(" ");
+            if (args.length != 2) {
+                channel.write(ByteBuffer.wrap("Wrong command\n".getBytes(StandardCharsets.UTF_8)));
+            } else {
+                String targetPath = args[1];
+                Path filePath = serverPath.resolve(targetPath);
+                if (!Files.isDirectory(serverPath) && !Files.exists(serverPath)) {
+                    channel.write(ByteBuffer.wrap("Wrong arg for cd command\n".getBytes(StandardCharsets.UTF_8)));
+                }
+                else {
+                    channel.write(ByteBuffer.wrap(Files.readAllBytes(filePath)));
+                    channel.write(ByteBuffer.wrap("\n".getBytes(StandardCharsets.UTF_8)));
+                }
+            }
+        }
     }
 
     private void handleAccept(SelectionKey key) throws IOException {
