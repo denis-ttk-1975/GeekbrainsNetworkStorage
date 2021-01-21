@@ -66,6 +66,20 @@ public class NioServer {
             files += "\n";
             channel.write(ByteBuffer.wrap(files.getBytes(StandardCharsets.UTF_8)));
         }
+        if (command.startsWith("cd")) {
+            String[] args = command.split(" ");
+            if (args.length != 2) {
+                channel.write(ByteBuffer.wrap("Wrong command\n".getBytes(StandardCharsets.UTF_8)));
+            } else {
+                String targetPath = args[1];
+                Path serverDirBefore = serverPath;
+                serverPath = serverPath.resolve(targetPath);
+                if (!Files.isDirectory(serverPath) && !Files.exists(serverPath)) {
+                    channel.write(ByteBuffer.wrap("Wrong arg for cd command\n".getBytes(StandardCharsets.UTF_8)));
+                    serverPath = serverDirBefore;
+                }
+            }
+        }
     }
 
     private void handleAccept(SelectionKey key) throws IOException {
