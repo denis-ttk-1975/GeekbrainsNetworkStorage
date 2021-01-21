@@ -96,7 +96,7 @@ public class NioServer {
                 }
             }
         }
-        if (command.startsWith("mkdir")) {
+        if (command.startsWith("mkdir")||command.startsWith("touch")) {
             String[] args = command.split(" ");
             if (args.length != 2) {
                 channel.write(ByteBuffer.wrap("Wrong command\n".getBytes(StandardCharsets.UTF_8)));
