@@ -96,6 +96,16 @@ public class NioServer {
                 }
             }
         }
+        if (command.startsWith("mkdir")) {
+            String[] args = command.split(" ");
+            if (args.length != 2) {
+                channel.write(ByteBuffer.wrap("Wrong command\n".getBytes(StandardCharsets.UTF_8)));
+            } else {
+                String targetPath = args[1];
+                Path filePath = serverPath.resolve(targetPath);
+                Files.createDirectory(filePath);
+            }
+        }
     }
 
     private void handleAccept(SelectionKey key) throws IOException {
