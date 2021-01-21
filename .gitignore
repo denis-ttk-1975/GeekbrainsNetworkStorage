@@ -1,5 +1,2 @@
-/out/
-# Intellij
-/.idea/
-*.iml
-*.iws
+# Project exclude paths
+/cloud-server/target/
