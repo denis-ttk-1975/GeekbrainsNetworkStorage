@@ -1,2 +1,8 @@
 # Project exclude paths
 /cloud-server/target/
+/.idea/
+/out/
+# Intellij
+/.idea/
+*.iml
+*.iws
