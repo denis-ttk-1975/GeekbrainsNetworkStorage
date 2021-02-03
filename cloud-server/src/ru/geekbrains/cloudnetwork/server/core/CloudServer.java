@@ -14,13 +14,13 @@ import java.util.Vector;
 
 import static java.lang.Thread.sleep;
 
-public class ChatServer implements ServerSocketThreadListener, SocketThreadListener {
+public class CloudServer implements ServerSocketThreadListener, SocketThreadListener {
     private final DateFormat DATE_FORMAT = new SimpleDateFormat("HH:mm:ss: ");
-    private final ChatServerListener listener;
+    private final CloudServerListener listener;
     private final Vector<SocketThread> clients;
     private ServerSocketThread thread;
 
-    public ChatServer(ChatServerListener listener) {
+    public CloudServer(CloudServerListener listener) {
         this.listener = listener;
         this.clients = new Vector<>();
     }

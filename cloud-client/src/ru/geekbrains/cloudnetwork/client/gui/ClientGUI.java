@@ -1,10 +1,15 @@
-package ru.geekbrains.cloudnetwork.client;
+package ru.geekbrains.cloudnetwork.client.gui;
 
+import ru.geekbrains.cloudnetwork.client.core.JsonTransformUtils;
+import ru.geekbrains.cloudnetwork.client.core.Node;
 import ru.geekbrains.cloudnetwork.common.Library;
 import ru.geekbrains.cloudnetwork.network.SocketThread;
 import ru.geekbrains.cloudnetwork.network.SocketThreadListener;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -16,8 +21,8 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 
 public class ClientGUI extends JFrame implements ActionListener, Thread.UncaughtExceptionHandler, SocketThreadListener {
-    private static final int WIDTH = 600;
-    private static final int HEIGHT = 300;
+    private static final int WIDTH = 800;
+    private static final int HEIGHT = 400;
 
     private final JTextArea log = new JTextArea();
     private final JPanel panelTop = new JPanel(new GridLayout(2, 3));
@@ -30,10 +35,17 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
     private final JPasswordField tfPassword = new JPasswordField("12345");
     private final JButton btnLogin = new JButton("Login");
 
-    private final JPanel panelBottom = new JPanel(new BorderLayout());
+    private final JPanel panelBottom = new JPanel(new GridLayout(2, 2));
+    private final JPanel panelBottomLeft = new JPanel(new BorderLayout());
+    private final JPanel panelBottomRight = new JPanel(new GridLayout(1, 2));
     private final JButton btnDisconnect = new JButton("<html><b>Disconnect</b></html>");
     private final JTextField tfMessage = new JTextField();
-    private final JButton btnSend = new JButton("Send");
+    private final JButton btnSend = new JButton("Add file");
+    private final JButton btnDownload = new JButton("Upload");
+    private final JButton btnDelete = new JButton("Delete");
+    private final JButton btnBrowse = new JButton("Browse...");
+    private JTable jTabFiles;
+
 
     private final JList<String> userList = new JList<>();
     private boolean shownIoErrors = false;
@@ -56,11 +68,38 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         setLocationRelativeTo(null);
         setSize(WIDTH, HEIGHT);
         setTitle(WINDOW_TITLE);
-        JScrollPane scrollLog = new JScrollPane(log);
-        JScrollPane scrollUser = new JScrollPane(userList);
         log.setEditable(false);
         log.setLineWrap(true);
-        scrollUser.setPreferredSize(new Dimension(150, 0));
+
+        JScrollPane scrollDir = null;
+        try {
+            JTree jTreeFolders = JsonTransformUtils.getTestInstance().getFolderTree();
+
+
+
+            jTreeFolders.addTreeSelectionListener(e -> {
+                DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) e.getPath().getLastPathComponent();
+                Node n = (Node) treeNode.getUserObject();
+                System.out.println(n.getNodePath());
+
+                n.fillFilesList(((DefaultTableModel) jTabFiles.getModel()));
+
+                jTabFiles.updateUI();
+
+            });
+            scrollDir = new JScrollPane(jTreeFolders);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        scrollDir.setPreferredSize(new Dimension(WIDTH/2, 0));
+
+        Object[] columnsHeader = new String[] {"Name"};
+        DefaultTableModel tableModel = new DefaultTableModel();
+        tableModel.setColumnIdentifiers(columnsHeader);
+        jTabFiles = new JTable(tableModel);
+        JScrollPane scrollFiles = new JScrollPane(jTabFiles);
+        scrollFiles.setPreferredSize(new Dimension(WIDTH/2, 0));
+
         cbAlwaysOnTop.addActionListener(this);
         btnSend.addActionListener(this);
         tfMessage.addActionListener(this);
@@ -74,12 +113,23 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         panelTop.add(tfLogin);
         panelTop.add(tfPassword);
         panelTop.add(btnLogin);
-        panelBottom.add(btnDisconnect, BorderLayout.WEST);
-        panelBottom.add(tfMessage, BorderLayout.CENTER);
-        panelBottom.add(btnSend, BorderLayout.EAST);
 
-        add(scrollLog, BorderLayout.CENTER);
-        add(scrollUser, BorderLayout.EAST);
+        panelBottomLeft.add(btnBrowse, BorderLayout.WEST);
+        panelBottomLeft.add(tfMessage, BorderLayout.CENTER);
+        panelBottomLeft.add(btnSend, BorderLayout.EAST);
+        panelBottomLeft.setPreferredSize(new Dimension(WIDTH/2, HEIGHT/10));
+
+        panelBottomRight.add(btnDownload);
+        panelBottomRight.add(btnDelete);
+
+        panelBottomRight.setPreferredSize(new Dimension(WIDTH/2, HEIGHT/10));
+        panelBottom.add(panelBottomLeft);
+        panelBottom.add(panelBottomRight);
+        panelBottom.add(btnDisconnect);
+
+        add(scrollDir, BorderLayout.CENTER);
+        add(scrollFiles, BorderLayout.EAST);
+        //add(new JScrollPane(jTabFiles), BorderLayout.EAST);
         add(panelTop, BorderLayout.NORTH);
         add(panelBottom, BorderLayout.SOUTH);
         setVisible(true);

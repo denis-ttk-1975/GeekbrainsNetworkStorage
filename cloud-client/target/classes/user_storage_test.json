@@ -1,0 +1,46 @@
+{
+  "rootDir" : "1",
+  "user" : "yuriy",
+  "content" : [
+    {
+      "type": "folder",
+      "name": "node1",
+      "content" : [
+        {
+          "type": "folder",
+          "name": "node11",
+          "content" : [
+            {
+              "type": "file",
+              "name": "file111.txt"
+            },
+            {
+              "type": "file",
+              "name": "file112.txt"
+            }
+          ]
+        },
+        {
+          "type": "folder",
+          "name": "node12"
+        },
+        {
+          "type": "file",
+          "name": "file11.txt"
+        },
+        {
+          "type": "file",
+          "name": "file112.txt"
+        }
+      ]
+    },
+    {
+      "type": "folder",
+      "name": "node2"
+    },
+    {
+      "type": "file",
+      "name": "file.txt"
+    }
+  ]
+}

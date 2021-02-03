@@ -1,5 +1,5 @@
 package ru.geekbrains.cloudnetwork.server.core;
 
-public interface ChatServerListener {
+public interface CloudServerListener {
     void onChatServerMessage(String msg);
 }
