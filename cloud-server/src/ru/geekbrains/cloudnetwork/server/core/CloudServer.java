@@ -6,11 +6,18 @@ import ru.geekbrains.cloudnetwork.network.ServerSocketThreadListener;
 import ru.geekbrains.cloudnetwork.network.SocketThread;
 import ru.geekbrains.cloudnetwork.network.SocketThreadListener;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Vector;
+import java.util.stream.Collectors;
 
 import static java.lang.Thread.sleep;
 
@@ -83,15 +90,16 @@ public class CloudServer implements ServerSocketThreadListener, SocketThreadList
             ClientThread oldClient = null;
             if (client.isAuthorized()) {oldClient = findClientByNickname(nickname);}
             client.authAccept(nickname);
+            client.sendMessage(Library.getFoldersStructure(getJSONFolderStructure(nickname)));
             if (oldClient == null) {
-                sendToAllAuthorizedClients(Library.getTypeBroadcast("Server", nickname + " connected"));
+                //sendToAllAuthorizedClients(Library.getTypeBroadcast("Server", nickname + " connected"));
             }
             else {
                 oldClient.reconnect();
                 clients.remove(oldClient);
             }
         }
-        sendToAllAuthorizedClients(Library.getUserList(getUsers()));
+        //sendToAllAuthorizedClients(Library.getUserList(getUsers()));
     }
 
     private void handleAuthMessage(ClientThread client, String msg) {
@@ -99,8 +107,7 @@ public class CloudServer implements ServerSocketThreadListener, SocketThreadList
         String msgType = arr[0];
         switch (msgType) {
             case Library.TYPE_BCAST_CLIENT:
-                sendToAllAuthorizedClients(Library.getTypeBroadcast(
-                        client.getNickname(), arr[1]));
+                sendToAllAuthorizedClients(Library.getTypeBroadcast(client.getNickname(), arr[1]));
                 break;
             default:
                 client.msgFormatError(msg);
@@ -134,6 +141,67 @@ public class CloudServer implements ServerSocketThreadListener, SocketThreadList
                 return client;
         }
         return null;
+    }
+
+    private static Path serverPath = Paths.get("serverDir");
+
+    private static String getJSONFolderStructure(String nickname) {
+        StringBuilder result = new StringBuilder();
+        try {
+            result.append(String.format("{\"rootDir\":\"%s\",\"user\":\"%s\",\"content\":[%s]}",nickname,nickname,JSONFolderPart(serverPath.resolve(nickname))));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return result.toString().replaceAll("}\\{","},{");
+    }
+
+    public static String JSONFolderPart(Path p) throws IOException {
+        StringBuilder result = new StringBuilder();
+        Files.walkFileTree(p, new HashSet<>(), 1,
+                new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                        if (file.toFile().isFile()) {
+                            result.append(String.format("{\"type\":\"file\",\"name\":\"%s\"}",file.getFileName()));
+                        }
+                        else {
+                            result.append(String.format("{\"type\":\"folder\",\"name\":\"%s\",\"content\":[%s]}",file.getFileName(),JSONFolderPart(file)));
+                        }
+                        return super.visitFile(file, attrs);
+                    }
+                });
+        return result.toString();
+    }
+
+    public static void main(String[] args) throws IOException {
+        String files = Files.list(serverPath.resolve("yuriy"))
+                .map(path -> path.getFileName().toString())
+                .collect(Collectors.joining(", "));
+
+        List<File> fileList = Files.walk((serverPath.resolve("yuriy")))
+                //.filter(Files::isRegularFile)
+                .map(Path::toFile)
+                .collect(Collectors.toList());
+                //.collect(Collectors.toList());
+        //String files2 = fileList.stream().collect(Collectors.joining(", "))
+
+        Files.walkFileTree(serverPath.resolve("yuriy"), new HashSet<>(), 1,
+                new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                        System.out.println(file);
+                        return super.visitFile(file, attrs);
+                    }
+                });
+
+        System.out.println();
+        System.out.println(files);
+        System.out.println();
+        System.out.println(fileList);
+        System.out.println();
+
+        System.out.println(getJSONFolderStructure("yuriy"));
+
     }
 
     /**

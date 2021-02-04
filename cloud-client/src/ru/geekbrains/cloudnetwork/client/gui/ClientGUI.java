@@ -9,11 +9,9 @@ import ru.geekbrains.cloudnetwork.network.SocketThreadListener;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.DefaultTreeModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.Socket;
 import java.text.DateFormat;
@@ -35,16 +33,21 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
     private final JPasswordField tfPassword = new JPasswordField("12345");
     private final JButton btnLogin = new JButton("Login");
 
-    private final JPanel panelBottom = new JPanel(new GridLayout(2, 2));
+    private final JPanel panelToolbar = new JPanel(new GridLayout(2, 2));
+    private final JPanel panelLeft = new JPanel(new GridLayout(1, 1));;
+    private final JPanel panelBottom = new JPanel(new GridLayout(2, 1));
+    private final JPanel panelMessage = new JPanel(new GridLayout(1, 1));
     private final JPanel panelBottomLeft = new JPanel(new BorderLayout());
     private final JPanel panelBottomRight = new JPanel(new GridLayout(1, 2));
     private final JButton btnDisconnect = new JButton("<html><b>Disconnect</b></html>");
-    private final JTextField tfMessage = new JTextField();
-    private final JButton btnSend = new JButton("Add file");
+    private final JTextField tfFilePath = new JTextField();
+    private final JButton btnAddFile = new JButton("Add file");
     private final JButton btnDownload = new JButton("Upload");
     private final JButton btnDelete = new JButton("Delete");
     private final JButton btnBrowse = new JButton("Browse...");
     private JTable jTabFiles;
+    private JTree jTreeFolders;
+    private JScrollPane scrollDir;
 
 
     private final JList<String> userList = new JList<>();
@@ -71,27 +74,27 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         log.setEditable(false);
         log.setLineWrap(true);
 
-        JScrollPane scrollDir = null;
-        try {
-            JTree jTreeFolders = JsonTransformUtils.getTestInstance().getFolderTree();
-
-
-
-            jTreeFolders.addTreeSelectionListener(e -> {
-                DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) e.getPath().getLastPathComponent();
-                Node n = (Node) treeNode.getUserObject();
-                System.out.println(n.getNodePath());
-
-                n.fillFilesList(((DefaultTableModel) jTabFiles.getModel()));
-
-                jTabFiles.updateUI();
-
-            });
-            scrollDir = new JScrollPane(jTreeFolders);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+//        try {
+//            jTreeFolders = JsonTransformUtils.getTestInstance().getFolderTree();
+//
+//            jTreeFolders.addTreeSelectionListener(e -> {
+//                DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) e.getPath().getLastPathComponent();
+//                Node n = (Node) treeNode.getUserObject();
+//                System.out.println(n.getNodePath());
+//
+//                n.fillFilesList(((DefaultTableModel) jTabFiles.getModel()));
+//
+//                jTabFiles.updateUI();
+//
+//            });
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//        scrollDir = new JScrollPane(jTreeFolders);
+        scrollDir = new JScrollPane();
         scrollDir.setPreferredSize(new Dimension(WIDTH/2, 0));
+
+        panelLeft.add(scrollDir);
 
         Object[] columnsHeader = new String[] {"Name"};
         DefaultTableModel tableModel = new DefaultTableModel();
@@ -101,11 +104,11 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         scrollFiles.setPreferredSize(new Dimension(WIDTH/2, 0));
 
         cbAlwaysOnTop.addActionListener(this);
-        btnSend.addActionListener(this);
-        tfMessage.addActionListener(this);
+        btnAddFile.addActionListener(this);
+        tfFilePath.addActionListener(this);
         btnLogin.addActionListener(this);
         btnDisconnect.addActionListener(this);
-        panelBottom.setVisible(false);
+        panelToolbar.setVisible(false);
 
         panelTop.add(tfIPAddress);
         panelTop.add(tfPort);
@@ -115,21 +118,29 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         panelTop.add(btnLogin);
 
         panelBottomLeft.add(btnBrowse, BorderLayout.WEST);
-        panelBottomLeft.add(tfMessage, BorderLayout.CENTER);
-        panelBottomLeft.add(btnSend, BorderLayout.EAST);
-        panelBottomLeft.setPreferredSize(new Dimension(WIDTH/2, HEIGHT/10));
+        panelBottomLeft.add(tfFilePath, BorderLayout.CENTER);
+        panelBottomLeft.add(btnAddFile, BorderLayout.EAST);
 
         panelBottomRight.add(btnDownload);
         panelBottomRight.add(btnDelete);
 
-        panelBottomRight.setPreferredSize(new Dimension(WIDTH/2, HEIGHT/10));
-        panelBottom.add(panelBottomLeft);
-        panelBottom.add(panelBottomRight);
-        panelBottom.add(btnDisconnect);
+        panelToolbar.add(panelBottomLeft);
+        panelToolbar.add(panelBottomRight);
+        panelToolbar.add(btnDisconnect);
+        //panelToolbar.setPreferredSize(new Dimension(WIDTH, HEIGHT/10));
 
-        add(scrollDir, BorderLayout.CENTER);
+        panelMessage.add(log);
+        //panelMessage.setPreferredSize(new Dimension(WIDTH, HEIGHT/20));
+
+        panelBottom.add(panelToolbar);
+        //panelBottom.add(panelMessage);
+        JScrollPane scrollMessage = new JScrollPane(panelMessage);
+        scrollMessage.setHorizontalScrollBar(null);
+        panelBottom.add(scrollMessage);
+        panelBottom.setPreferredSize(new Dimension(WIDTH, HEIGHT/5));
+
+        add(panelLeft, BorderLayout.CENTER);
         add(scrollFiles, BorderLayout.EAST);
-        //add(new JScrollPane(jTabFiles), BorderLayout.EAST);
         add(panelTop, BorderLayout.NORTH);
         add(panelBottom, BorderLayout.SOUTH);
         setVisible(true);
@@ -140,8 +151,8 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         Object src = e.getSource();
         if (src == cbAlwaysOnTop) {
             setAlwaysOnTop(cbAlwaysOnTop.isSelected());
-        } else if (src == btnSend || src == tfMessage) {
-            sendMessage();
+        } else if (src == btnAddFile || src == tfFilePath) {
+            sendFile();
         } else if (src == btnLogin) {
             connect();
         } else if (src == btnDisconnect) {
@@ -167,31 +178,19 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
     }
 
     private void sendCredentials(SocketThread thread) {
-        panelBottom.setVisible(true);
+        panelToolbar.setVisible(true);
         panelTop.setVisible(false);
         String login = tfLogin.getText();
         String password = new String(tfPassword.getPassword());
         thread.sendMessage(Library.getAuthRequest(login, password));
     }
 
-    private void sendMessage() {
-        String msg = tfMessage.getText();
+    private void sendFile() {
+        String msg = tfFilePath.getText();
         if ("".equals(msg)) return;
-        tfMessage.setText(null);
-        tfMessage.grabFocus();
-        socketThread.sendMessage(Library.getTypeClientBcast(msg));
-    }
-
-    private void wrtMsgToLogFile(String msg, String username) {
-        try (FileWriter out = new FileWriter("log.txt", true)) {
-            out.write(username + ": " + msg + "\n");
-            out.flush();
-        } catch (IOException e) {
-            if (!shownIoErrors) {
-                shownIoErrors = true;
-                showException(Thread.currentThread(), e);
-            }
-        }
+        tfFilePath.setText(null);
+        tfFilePath.grabFocus();
+        socketThread.sendMessage(Library.getTypeClientBcast(msg)); //TODO: поменять на отправку файла
     }
 
     private void putLog(String msg) {
@@ -200,6 +199,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
             @Override
             public void run() {
                 log.append(msg + "\n");
+                //log.setText(msg + "\n");
                 log.setCaretPosition(log.getDocument().getLength());
             }
         });
@@ -228,7 +228,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
                 break;
             case Library.AUTH_DENIED:
                 panelTop.setVisible(true);
-                panelBottom.setVisible(false);
+                panelToolbar.setVisible(false);
                 putLog("Authorization failed");
                 break;
             case Library.MSG_FORMAT_ERROR:
@@ -245,9 +245,33 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
                 Arrays.sort(usersArray);
                 userList.setListData(usersArray);
                 break;
+            case Library.FOLDERS_STRUCTURE:
+                initFolderStructure(arr[1]);
+                break;
             default:
                 throw new RuntimeException("Unknown message type: " + msg);
         }
+    }
+
+    private void initFolderStructure(String JSON) {
+
+        jTreeFolders = new JsonTransformUtils(JSON).getFolderTree();
+
+        jTreeFolders.addTreeSelectionListener(e -> {
+            DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) e.getPath().getLastPathComponent();
+            Node n = (Node) treeNode.getUserObject();
+
+            n.fillFilesList(((DefaultTableModel) jTabFiles.getModel()));
+
+            jTabFiles.updateUI();
+
+        });
+        panelLeft.remove(scrollDir);
+        scrollDir = new JScrollPane(jTreeFolders);
+        panelLeft.add(scrollDir);
+        jTreeFolders.updateUI();
+        scrollDir.updateUI();
+        panelLeft.updateUI();
     }
 
     @Override
@@ -269,7 +293,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
 
     @Override
     public void onSocketStop(SocketThread thread) {
-        panelBottom.setVisible(false);
+        panelToolbar.setVisible(false);
         panelTop.setVisible(true);
         setTitle(WINDOW_TITLE);
         userList.setListData(new String[0]);

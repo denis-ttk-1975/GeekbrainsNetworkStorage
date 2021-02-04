@@ -22,6 +22,7 @@ public class Library {
     public static final String TYPE_BROADCAST = "/bcast"; // то есть сообщение, которое будет посылаться всем
     public static final String USER_LIST = "/user_list";
     public static final String TYPE_BCAST_CLIENT = "/client_bcast";
+    public static final String FOLDERS_STRUCTURE = "/client_bcast";
 
     public static String getAuthRequest(String login, String password) {
         return AUTH_REQUEST + DELIMITER + login + DELIMITER + password;
@@ -29,6 +30,10 @@ public class Library {
 
     public static String getAuthAccept(String nickname) {
         return AUTH_ACCEPT + DELIMITER + nickname;
+    }
+
+    public static String getFoldersStructure(String JSON) {
+        return FOLDERS_STRUCTURE + DELIMITER + JSON;
     }
 
     public static String getAuthDenied() {
