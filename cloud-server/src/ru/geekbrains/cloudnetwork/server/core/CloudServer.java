@@ -10,6 +10,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.text.DateFormat;
@@ -26,6 +28,7 @@ public class CloudServer implements ServerSocketThreadListener, SocketThreadList
     private final CloudServerListener listener;
     private final Vector<SocketThread> clients;
     private ServerSocketThread thread;
+    private static Path serverPath = Paths.get("serverDir");
 
     public CloudServer(CloudServerListener listener) {
         this.listener = listener;
@@ -119,13 +122,42 @@ public class CloudServer implements ServerSocketThreadListener, SocketThreadList
                 if (arr[1].contains(client.getNickname())) deleteClientFile(arr[1]);
                 client.sendMessage(Library.getFoldersStructure(getJSONFolderStructure(client.getNickname())));
                 break;
+            case Library.UPLOAD_FILE_REQUEST:
+                if (arr[1].contains(client.getNickname())) uploadClientFile(client, arr[1]);
+                break;
             case Library.ADD_FOLDER_REQUEST:
                 if (arr[1].contains(client.getNickname())) addClientFolder(arr[1]);
                 client.sendMessage(Library.getFoldersStructure(getJSONFolderStructure(client.getNickname())));
                 break;
+            case Library.SEND_FILE_TO_SERVER:
+                if (arr[1].contains(client.getNickname())) addClientFile(arr[1], arr[2]);
+                client.sendMessage(Library.getFoldersStructure(getJSONFolderStructure(client.getNickname())));
+                break;            
             default:
                 client.msgFormatError(msg);
 
+        }
+    }
+
+    private void addClientFile(String filePath, String content) {
+        try {
+            Files.write(serverPath.resolve(filePath),content.getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void uploadClientFile(ClientThread client, String filePath) {
+        if (!Files.exists(serverPath.resolve(filePath))) {
+            client.sendMessage(Library.getTypeBroadcast("Server","Wrong file path: "+filePath + "; from "+client.getNickname()));
+        }
+        else {
+            try {
+                //client.sendMessage(Library.getUploadFile(serverPath.resolve(filePath),ByteBuffer.wrap(Files.readAllBytes(serverPath.resolve(filePath)))));
+                client.sendMessage(Library.getUploadFile(serverPath.resolve(filePath),Files.readAllLines(serverPath.resolve(filePath)).stream().reduce((s, s2) -> s+"\n"+s2)));//TODO: переделать на отправку byte[]
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -187,8 +219,6 @@ public class CloudServer implements ServerSocketThreadListener, SocketThreadList
         }
         return null;
     }
-
-    private static Path serverPath = Paths.get("serverDir");
 
     private static String getJSONFolderStructure(String nickname) {
         StringBuilder result = new StringBuilder();

@@ -30,19 +30,17 @@ public class JsonTransformUtils {
     }
 
     public JsonTransformUtils(String JSON) {
-        System.out.println(JSON);
+        //System.out.println(JSON);
         json = new JSONObject(JSON);
         user = json.getString("user");
         root = new Node(Node.TYPE_FOLDER,json.getString("rootDir"),"");
         fillTree(root, json.getJSONArray("content"));
-        //System.out.println(root);
     }
 
     void fillTree(Node root, JSONArray content) {
         if (content!=null) {
             for (int i = 0; i < content.length(); i++) {
                 JSONObject leaf = (JSONObject) content.get(i);
-                //System.out.println(leaf);
                 Node n = new Node(leaf.getString("type"), leaf.getString("name"),root.getNodePath());
                 root.addChildrenNode(n);
                 if (leaf.getString("type").equals(Node.TYPE_FOLDER)) {

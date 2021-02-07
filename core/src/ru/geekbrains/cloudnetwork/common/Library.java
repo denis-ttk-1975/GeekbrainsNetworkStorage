@@ -1,5 +1,12 @@
 package ru.geekbrains.cloudnetwork.common;
 
+import java.nio.ByteBuffer;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 public class Library {
     /*
     * /auth_request±login±password
@@ -26,6 +33,9 @@ public class Library {
     public static final String RENAME_FILE_REQUEST = "/rename_file";
     public static final String DELETE_FILE_REQUEST = "/delete_file";
     public static final String ADD_FOLDER_REQUEST = "/add_folder";
+    public static final String UPLOAD_FILE_REQUEST = "/upload_file_request";
+    public static final String UPLOAD_FILE_FROM_SERVER = "/upload_file_from_server";
+    public static final String SEND_FILE_TO_SERVER = "/send_file_to_server";
 
     public static String getAuthRequest(String login, String password) {
         return AUTH_REQUEST + DELIMITER + login + DELIMITER + password;
@@ -71,4 +81,25 @@ public class Library {
     public static String getFolder(String folderPath) {
         return ADD_FOLDER_REQUEST + DELIMITER + folderPath;
     }
+
+    public static String getUploadRequestFile(String path) {
+        return UPLOAD_FILE_REQUEST + DELIMITER + path;
+    }
+
+    public static String getUploadFile(Path filePath, ByteBuffer byteBuffer) {
+        return UPLOAD_FILE_FROM_SERVER + DELIMITER + filePath.toFile().getName() + DELIMITER + byteBuffer.toString();
+    }
+
+    public static String getUploadFile(Path filePath, String byteBuffer) {
+        return UPLOAD_FILE_FROM_SERVER + DELIMITER + filePath.toFile().getName() + DELIMITER + byteBuffer;
+    }
+
+    public static String getUploadFile(Path filePath, Optional<String> reduce) {
+        return UPLOAD_FILE_FROM_SERVER + DELIMITER + filePath.toFile().getName() + DELIMITER + reduce.orElse("");
+    }
+
+    public static String getSendFileToServer(String path, Optional<String> content) {
+        return SEND_FILE_TO_SERVER + DELIMITER + path + DELIMITER + content.orElse("");
+    }
+
 }

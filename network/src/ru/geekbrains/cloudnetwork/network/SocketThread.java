@@ -62,6 +62,18 @@ public class SocketThread extends Thread {
         }
     }
 
+    public synchronized boolean sendBytes(byte[] msg) {
+        try {
+            out.write(msg);
+            out.flush();
+            return true;
+        } catch (IOException e) {
+            listener.onSocketException(this, e);
+            close();
+            return false;
+        }
+    }
+
     public synchronized void close() {
         try {
             in.close();

@@ -7,26 +7,28 @@ import ru.geekbrains.cloudnetwork.network.SocketThread;
 import ru.geekbrains.cloudnetwork.network.SocketThreadListener;
 
 import javax.swing.*;
-import javax.swing.event.CellEditorListener;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 import javax.swing.tree.DefaultMutableTreeNode;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Enumeration;
-import java.util.EventObject;
+import java.util.Scanner;
 
 public class ClientGUI extends JFrame implements ActionListener, TableModelListener, Thread.UncaughtExceptionHandler, SocketThreadListener {
     private static final int WIDTH = 800;
@@ -58,7 +60,7 @@ public class ClientGUI extends JFrame implements ActionListener, TableModelListe
     private final JButton btnDeleteFolder = new JButton("Delete folder");
     private final JButton btnAddFolder = new JButton("Add Folder");
 
-    private final JButton btnDownload = new JButton("Upload File");
+    private final JButton btnUploadFile = new JButton("Upload File");
     private final JButton btnDeleteFile = new JButton("Delete File");
     private JTable jTabFiles;
     private JTree jTreeFolders;
@@ -70,6 +72,8 @@ public class ClientGUI extends JFrame implements ActionListener, TableModelListe
     private SocketThread socketThread;
     private final DateFormat DATE_FORMAT = new SimpleDateFormat("HH:mm:ss: ");
     private final String WINDOW_TITLE = "Network Storage";
+
+    private static Path uploadPath = Paths.get("uploadDir");
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
@@ -112,11 +116,14 @@ public class ClientGUI extends JFrame implements ActionListener, TableModelListe
         cbAlwaysOnTop.addActionListener(this);
         btnAddFile.addActionListener(this);
         tfFilePath.addActionListener(this);
+        tfFilePath.setEditable(false);
         btnAddFolder.addActionListener(this);
         btnDeleteFolder.addActionListener(this);
         btnLogin.addActionListener(this);
         btnDisconnect.addActionListener(this);
         btnDeleteFile.addActionListener(this);
+        btnUploadFile.addActionListener(this);
+        btnBrowse.addActionListener(this);
         panelToolbar.setVisible(false);
 
         panelTop.add(tfIPAddress);
@@ -130,7 +137,7 @@ public class ClientGUI extends JFrame implements ActionListener, TableModelListe
         panelBottomLeft.add(tfFilePath, BorderLayout.CENTER);
         panelBottomLeft.add(btnAddFile, BorderLayout.EAST);
 
-        panelBottomRight.add(btnDownload);
+        panelBottomRight.add(btnUploadFile);
         panelBottomRight.add(btnDeleteFile);
 
         panelToolbar.add(panelBottomLeft);
@@ -167,6 +174,23 @@ public class ClientGUI extends JFrame implements ActionListener, TableModelListe
     }
 
     @Override
+    public void tableChanged(TableModelEvent e) {
+        try {
+            int idx = jTabFiles.getSelectedRow();
+            DefaultTableModel tableModel = (DefaultTableModel) e.getSource();
+            if (idx >= 0) {
+                DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) jTreeFolders.getSelectionPath().getLastPathComponent();
+                Node n = (Node) treeNode.getUserObject();
+                String path = n.getNodePath() + "\\" + tableModel.getValueAt(idx, 0);
+                String newPath = n.getNodePath() + "\\" + tableModel.getValueAt(idx, 1).toString();
+                renameFile(path, newPath);
+            }
+        } catch (Exception exception) {
+
+        }
+    }
+
+    @Override
     public void actionPerformed(ActionEvent e) {
         Object src = e.getSource();
         if (src == cbAlwaysOnTop) {
@@ -186,26 +210,21 @@ public class ClientGUI extends JFrame implements ActionListener, TableModelListe
         else if (src == btnAddFolder) {
             addFolder();
         }
+        else if (src == btnUploadFile) {
+            uploadFile();
+        }
+        else if (src == btnBrowse) {
+            openFileChooser();
+        }
         else {
             throw new RuntimeException("Unknown source: " + src);
         }
     }
 
-    @Override
-    public void tableChanged(TableModelEvent e) {
-        try {
-            int idx = jTabFiles.getSelectedRow();
-            DefaultTableModel tableModel = (DefaultTableModel) e.getSource();
-            if (idx >= 0) {
-                DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) jTreeFolders.getSelectionPath().getLastPathComponent();
-                Node n = (Node) treeNode.getUserObject();
-                String path = n.getNodePath() + "\\" + tableModel.getValueAt(idx, 0);
-                String newPath = n.getNodePath() + "\\" + tableModel.getValueAt(idx, 1).toString();
-                renameFile(path, newPath);
-            }
-        } catch (Exception exception) {
-
-        }
+    private void openFileChooser() {
+        final JFileChooser fc = new JFileChooser();
+        fc.showOpenDialog(this);
+        tfFilePath.setText(fc.getSelectedFile().getAbsolutePath());
     }
 
     private void deleteFile() {
@@ -217,6 +236,21 @@ public class ClientGUI extends JFrame implements ActionListener, TableModelListe
                 Node n = (Node) treeNode.getUserObject();
                 String path = n.getNodePath() + "\\" + tableModel.getValueAt(idx, 0);
                 socketThread.sendMessage(Library.getDeleteFile(path));
+            }
+        } catch (Exception exception) {
+
+        }
+    }
+
+    private void uploadFile() {
+        try {
+            int idx = jTabFiles.getSelectedRow();
+            DefaultTableModel tableModel = (DefaultTableModel) jTabFiles.getModel();
+            if (idx >= 0) {
+                DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) jTreeFolders.getSelectionPath().getLastPathComponent();
+                Node n = (Node) treeNode.getUserObject();
+                String path = n.getNodePath() + "\\" + tableModel.getValueAt(idx, 0);
+                socketThread.sendMessage(Library.getUploadRequestFile(path));
             }
         } catch (Exception exception) {
 
@@ -281,11 +315,23 @@ public class ClientGUI extends JFrame implements ActionListener, TableModelListe
     }
 
     private void sendFile() {
-        String msg = tfFilePath.getText();
-        if ("".equals(msg)) return;
+        Path localFilePath = Paths.get(tfFilePath.getText());
+        if ("".equals(localFilePath)) return;
         tfFilePath.setText(null);
         tfFilePath.grabFocus();
-        socketThread.sendMessage(Library.getTypeClientBcast(msg)); //TODO: поменять на отправку файла
+
+        try {
+            DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) jTreeFolders.getSelectionPath().getLastPathComponent();
+            Node n = (Node) treeNode.getUserObject();
+            String filePath = n.getNodePath() + "\\" +  localFilePath.toFile().getName();
+            socketThread.sendMessage(Library.getSendFileToServer(
+                    filePath,
+                    Files.readAllLines(localFilePath).stream().reduce((s, s2) -> s+"\n"+s2))
+            );
+        } catch (Exception exception) {
+
+        }
+
     }
 
     private void putLog(String msg) {
@@ -344,8 +390,19 @@ public class ClientGUI extends JFrame implements ActionListener, TableModelListe
                 clearFolderPanels();
                 initFolderStructure(arr[1]);
                 break;
+            case Library.UPLOAD_FILE_FROM_SERVER:
+                uploadFileFromServer(arr[1],arr[2]);
+                break;
             default:
                 throw new RuntimeException("Unknown message type: " + msg);
+        }
+    }
+
+    private void uploadFileFromServer(String fileName, String byteBufString) {
+        try {
+            Files.write(uploadPath.resolve(fileName),byteBufString.getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
