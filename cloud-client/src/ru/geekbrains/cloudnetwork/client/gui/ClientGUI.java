@@ -7,18 +7,28 @@ import ru.geekbrains.cloudnetwork.network.SocketThread;
 import ru.geekbrains.cloudnetwork.network.SocketThreadListener;
 
 import javax.swing.*;
+import javax.swing.event.CellEditorListener;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellEditor;
+import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
 import javax.swing.tree.DefaultMutableTreeNode;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.io.IOException;
 import java.net.Socket;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.EventObject;
 
-public class ClientGUI extends JFrame implements ActionListener, Thread.UncaughtExceptionHandler, SocketThreadListener {
+public class ClientGUI extends JFrame implements ActionListener, TableModelListener, Thread.UncaughtExceptionHandler, SocketThreadListener {
     private static final int WIDTH = 800;
     private static final int HEIGHT = 400;
 
@@ -41,10 +51,15 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
     private final JPanel panelBottomRight = new JPanel(new GridLayout(1, 2));
     private final JButton btnDisconnect = new JButton("<html><b>Disconnect</b></html>");
     private final JTextField tfFilePath = new JTextField();
-    private final JButton btnAddFile = new JButton("Add file");
-    private final JButton btnDownload = new JButton("Upload");
-    private final JButton btnDelete = new JButton("Delete");
     private final JButton btnBrowse = new JButton("Browse...");
+    private final JButton btnAddFile = new JButton("Add file");
+
+    private final JTextField tfFolderName = new JTextField();
+    private final JButton btnDeleteFolder = new JButton("Delete folder");
+    private final JButton btnAddFolder = new JButton("Add Folder");
+
+    private final JButton btnDownload = new JButton("Upload File");
+    private final JButton btnDeleteFile = new JButton("Delete File");
     private JTable jTabFiles;
     private JTree jTreeFolders;
     private JScrollPane scrollDir;
@@ -74,40 +89,34 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         log.setEditable(false);
         log.setLineWrap(true);
 
-//        try {
-//            jTreeFolders = JsonTransformUtils.getTestInstance().getFolderTree();
-//
-//            jTreeFolders.addTreeSelectionListener(e -> {
-//                DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) e.getPath().getLastPathComponent();
-//                Node n = (Node) treeNode.getUserObject();
-//                System.out.println(n.getNodePath());
-//
-//                n.fillFilesList(((DefaultTableModel) jTabFiles.getModel()));
-//
-//                jTabFiles.updateUI();
-//
-//            });
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//        scrollDir = new JScrollPane(jTreeFolders);
         scrollDir = new JScrollPane();
         scrollDir.setPreferredSize(new Dimension(WIDTH/2, 0));
 
         panelLeft.add(scrollDir);
 
-        Object[] columnsHeader = new String[] {"Name"};
+        Object[] columnsHeader = new String[] {"Node Link", "Name"};
         DefaultTableModel tableModel = new DefaultTableModel();
         tableModel.setColumnIdentifiers(columnsHeader);
         jTabFiles = new JTable(tableModel);
+
+        TableColumnModel columnModel = jTabFiles.getColumnModel();
+        Enumeration<TableColumn> e = columnModel.getColumns();
+        TableColumn column = e.nextElement();
+        column.setMinWidth(0);
+        column.setMaxWidth(0);
+        tableModel.addTableModelListener(this::tableChanged);
+
         JScrollPane scrollFiles = new JScrollPane(jTabFiles);
         scrollFiles.setPreferredSize(new Dimension(WIDTH/2, 0));
 
         cbAlwaysOnTop.addActionListener(this);
         btnAddFile.addActionListener(this);
         tfFilePath.addActionListener(this);
+        btnAddFolder.addActionListener(this);
+        btnDeleteFolder.addActionListener(this);
         btnLogin.addActionListener(this);
         btnDisconnect.addActionListener(this);
+        btnDeleteFile.addActionListener(this);
         panelToolbar.setVisible(false);
 
         panelTop.add(tfIPAddress);
@@ -122,11 +131,22 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         panelBottomLeft.add(btnAddFile, BorderLayout.EAST);
 
         panelBottomRight.add(btnDownload);
-        panelBottomRight.add(btnDelete);
+        panelBottomRight.add(btnDeleteFile);
 
         panelToolbar.add(panelBottomLeft);
         panelToolbar.add(panelBottomRight);
-        panelToolbar.add(btnDisconnect);
+
+        JPanel panel;
+        panel = new JPanel(new BorderLayout());
+        panel.add(btnDeleteFolder, BorderLayout.WEST);
+        panel.add(tfFolderName, BorderLayout.CENTER);
+        panel.add(btnAddFolder, BorderLayout.EAST);
+        panelToolbar.add(panel);
+
+        panel = new JPanel(new GridLayout(1, 2));
+        panel.add(new JPanel());
+        panel.add(btnDisconnect);
+        panelToolbar.add(panel);
         //panelToolbar.setPreferredSize(new Dimension(WIDTH, HEIGHT/10));
 
         panelMessage.add(log);
@@ -157,10 +177,85 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
             connect();
         } else if (src == btnDisconnect) {
             socketThread.close();
-        } else {
+        } else if (src == btnDeleteFile) {
+            deleteFile();
+        }
+        else if (src == btnDeleteFolder) {
+            deleteFolder();
+        }
+        else if (src == btnAddFolder) {
+            addFolder();
+        }
+        else {
             throw new RuntimeException("Unknown source: " + src);
         }
     }
+
+    @Override
+    public void tableChanged(TableModelEvent e) {
+        try {
+            int idx = jTabFiles.getSelectedRow();
+            DefaultTableModel tableModel = (DefaultTableModel) e.getSource();
+            if (idx >= 0) {
+                DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) jTreeFolders.getSelectionPath().getLastPathComponent();
+                Node n = (Node) treeNode.getUserObject();
+                String path = n.getNodePath() + "\\" + tableModel.getValueAt(idx, 0);
+                String newPath = n.getNodePath() + "\\" + tableModel.getValueAt(idx, 1).toString();
+                renameFile(path, newPath);
+            }
+        } catch (Exception exception) {
+
+        }
+    }
+
+    private void deleteFile() {
+        try {
+            int idx = jTabFiles.getSelectedRow();
+            DefaultTableModel tableModel = (DefaultTableModel) jTabFiles.getModel();
+            if (idx >= 0) {
+                DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) jTreeFolders.getSelectionPath().getLastPathComponent();
+                Node n = (Node) treeNode.getUserObject();
+                String path = n.getNodePath() + "\\" + tableModel.getValueAt(idx, 0);
+                socketThread.sendMessage(Library.getDeleteFile(path));
+            }
+        } catch (Exception exception) {
+
+        }
+    }
+
+    private void addFolder() {
+
+        if ("".equals(tfFolderName.getText())) return;
+
+        try {
+            DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) jTreeFolders.getSelectionPath().getLastPathComponent();
+            Node n = (Node) treeNode.getUserObject();
+            String filePath = n.getNodePath() + "\\" +  tfFolderName.getText();
+
+            tfFolderName.setText(null);
+            tfFolderName.grabFocus();
+            socketThread.sendMessage(Library.getFolder(filePath));
+        } catch (Exception exception) {
+
+        }
+    }
+
+    private void deleteFolder() {
+        try {
+            DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) jTreeFolders.getSelectionPath().getLastPathComponent();
+            Node n = (Node) treeNode.getUserObject();
+            String path = n.getNodePath();
+            socketThread.sendMessage(Library.getDeleteFile(path));
+        } catch (Exception exception) {
+
+        }
+    }
+
+    private void renameFile(String path, String newPath) {
+        if ("".equals(newPath)) return;
+        socketThread.sendMessage(Library.getRenameFile(path, newPath));
+    }
+
 
     private void connect() {
         if (socketThread!=null) {
@@ -246,6 +341,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
                 userList.setListData(usersArray);
                 break;
             case Library.FOLDERS_STRUCTURE:
+                clearFolderPanels();
                 initFolderStructure(arr[1]);
                 break;
             default:
@@ -266,13 +362,27 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
             jTabFiles.updateUI();
 
         });
+        refreshFolderTree();
+    }
+
+    private void clearFolderPanels() {
+        jTreeFolders = null;//new JTree();
+        refreshFolderTree();
+        DefaultTableModel tableModel = ((DefaultTableModel) jTabFiles.getModel());
+        for (int i = tableModel.getRowCount() - 1; i >= 0; i--) {
+            tableModel.removeRow(i);
+        }
+    }
+
+    private void refreshFolderTree() {
         panelLeft.remove(scrollDir);
         scrollDir = new JScrollPane(jTreeFolders);
         panelLeft.add(scrollDir);
-        jTreeFolders.updateUI();
+        if (jTreeFolders!=null) jTreeFolders.updateUI();
         scrollDir.updateUI();
         panelLeft.updateUI();
     }
+
 
     @Override
     public void uncaughtException(Thread t, Throwable e) {
@@ -295,6 +405,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
     public void onSocketStop(SocketThread thread) {
         panelToolbar.setVisible(false);
         panelTop.setVisible(true);
+        clearFolderPanels();
         setTitle(WINDOW_TITLE);
         userList.setListData(new String[0]);
         thread.interrupt();
@@ -314,4 +425,5 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
     public void onSocketException(SocketThread thread, Exception exception) {
         showException(thread, exception);
     }
+
 }

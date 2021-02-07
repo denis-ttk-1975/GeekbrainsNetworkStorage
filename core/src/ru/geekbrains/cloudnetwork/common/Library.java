@@ -22,7 +22,10 @@ public class Library {
     public static final String TYPE_BROADCAST = "/bcast"; // то есть сообщение, которое будет посылаться всем
     public static final String USER_LIST = "/user_list";
     public static final String TYPE_BCAST_CLIENT = "/client_bcast";
-    public static final String FOLDERS_STRUCTURE = "/client_bcast";
+    public static final String FOLDERS_STRUCTURE = "/get_folder_struct";
+    public static final String RENAME_FILE_REQUEST = "/rename_file";
+    public static final String DELETE_FILE_REQUEST = "/delete_file";
+    public static final String ADD_FOLDER_REQUEST = "/add_folder";
 
     public static String getAuthRequest(String login, String password) {
         return AUTH_REQUEST + DELIMITER + login + DELIMITER + password;
@@ -55,5 +58,17 @@ public class Library {
 
     public static String getTypeClientBcast(String msg) {
         return TYPE_BCAST_CLIENT + DELIMITER + msg;
+    }
+
+    public static String getRenameFile(String path, String newPath) {
+        return RENAME_FILE_REQUEST + DELIMITER + path + DELIMITER + newPath;
+    }
+
+    public static String getDeleteFile(String path) {
+        return DELETE_FILE_REQUEST + DELIMITER + path;
+    }
+
+    public static String getFolder(String folderPath) {
+        return ADD_FOLDER_REQUEST + DELIMITER + folderPath;
     }
 }

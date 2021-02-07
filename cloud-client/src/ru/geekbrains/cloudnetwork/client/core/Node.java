@@ -2,6 +2,7 @@ package ru.geekbrains.cloudnetwork.client.core;
 
 import javax.swing.table.DefaultTableModel;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Node {
     static final String TYPE_FOLDER = "folder";
@@ -38,7 +39,7 @@ public class Node {
     }
 
     public String getNodePath() {
-        return parentPath+"/"+name;
+        return parentPath+(parentPath.equals("")?"":"\\")+name;
     }
 
     public String getParentPath() {
@@ -57,7 +58,7 @@ public class Node {
         for (int i = tableModel.getRowCount() - 1; i >= 0; i--) {
             tableModel.removeRow(i);
         }
-        childrenNodes.stream().filter(node -> node.isFile()).forEach(node -> tableModel.addRow(new Node[]{node}));
+        childrenNodes.stream().filter(node -> node.isFile()).forEach(node -> tableModel.addRow(new Node[]{node, node}));
     }
 
     @Override

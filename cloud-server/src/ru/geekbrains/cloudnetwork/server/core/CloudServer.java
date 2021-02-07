@@ -93,6 +93,7 @@ public class CloudServer implements ServerSocketThreadListener, SocketThreadList
             client.sendMessage(Library.getFoldersStructure(getJSONFolderStructure(nickname)));
             if (oldClient == null) {
                 //sendToAllAuthorizedClients(Library.getTypeBroadcast("Server", nickname + " connected"));
+                client.sendMessage(Library.getTypeBroadcast("Server", nickname + " connected"));
             }
             else {
                 oldClient.reconnect();
@@ -107,11 +108,55 @@ public class CloudServer implements ServerSocketThreadListener, SocketThreadList
         String msgType = arr[0];
         switch (msgType) {
             case Library.TYPE_BCAST_CLIENT:
-                sendToAllAuthorizedClients(Library.getTypeBroadcast(client.getNickname(), arr[1]));
+                //sendToAllAuthorizedClients(Library.getTypeBroadcast(client.getNickname(), arr[1]));
+                client.sendMessage(Library.getTypeBroadcast(client.getNickname(), arr[1]));
+                break;
+            case Library.RENAME_FILE_REQUEST:
+                if (arr[1].contains(client.getNickname())) renameClientFile(arr[1], arr[2]); //TODO: простейшая проверка на права доступа
+                client.sendMessage(Library.getFoldersStructure(getJSONFolderStructure(client.getNickname())));
+                break;
+            case Library.DELETE_FILE_REQUEST:
+                if (arr[1].contains(client.getNickname())) deleteClientFile(arr[1]);
+                client.sendMessage(Library.getFoldersStructure(getJSONFolderStructure(client.getNickname())));
+                break;
+            case Library.ADD_FOLDER_REQUEST:
+                if (arr[1].contains(client.getNickname())) addClientFolder(arr[1]);
+                client.sendMessage(Library.getFoldersStructure(getJSONFolderStructure(client.getNickname())));
                 break;
             default:
                 client.msgFormatError(msg);
 
+        }
+    }
+
+    private void addClientFolder(String folderPath) {
+        try {
+            Files.createDirectory(serverPath.resolve(folderPath));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void renameClientFile(String path, String newPath) {
+        try {
+            Files.move(serverPath.resolve(path), serverPath.resolve(newPath));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void deleteClientFile(String path) {
+        try {
+            Files.walk((serverPath.resolve(path))).forEach(path1 -> {
+                try {
+                    Files.delete(path1);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+            Files.delete(serverPath.resolve(path));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -266,10 +311,10 @@ public class CloudServer implements ServerSocketThreadListener, SocketThreadList
         clients.remove(thread);
         ClientThread client = (ClientThread) thread;
         if (client.isAuthorized() && !client.isReconnecting()) {
-            sendToAllAuthorizedClients(Library.getTypeBroadcast("Server",
-                    client.getNickname() + " disconnected"));
+            //sendToAllAuthorizedClients(Library.getTypeBroadcast("Server",client.getNickname() + " disconnected"));
+            client.sendMessage(Library.getTypeBroadcast("Server",client.getNickname() + " disconnected"));
         }
-        sendToAllAuthorizedClients(Library.getUserList(getUsers()));
+        //sendToAllAuthorizedClients(Library.getUserList(getUsers()));
 
     }
 
